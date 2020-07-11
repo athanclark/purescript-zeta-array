@@ -17,6 +17,7 @@ data ArrayUpdate value
   | ArrayUpdate { index :: Int, valueOld :: value, valueNew :: value }
   | ArrayDelete { index :: Int, valueOld :: value }
   | ArrayMove { indexOld :: Int, indexNew :: Int, value :: value }
+  | ArrayOverwrite { values :: Array value }
 
 newtype IxSignalArray (rw :: # S.SCOPE) value = IxSignalArray
   { state :: Ref (Array value)
@@ -97,6 +98,16 @@ deleteExcept indicies index (IxSignalArray {state, queue}) = do
         Ref.write xs' state
         IxQueue.broadcastExcept queue indicies (ArrayDelete {index, valueOld: x})
         pure true
+
+overwrite :: forall rw value. Array value -> IxSignalArray (write :: S.WRITE | rw) value -> Effect Unit
+overwrite values (IxSignalArray {state, queue}) = do
+  Ref.write values state
+  IxQueue.broadcast queue (ArrayOverwrite {values})
+
+overwriteExcept :: forall rw value. Array String -> Array value -> IxSignalArray (write :: S.WRITE | rw) value -> Effect Unit
+overwriteExcept indicies values (IxSignalArray {state, queue}) = do
+  Ref.write values state
+  IxQueue.broadcastExcept queue indicies (ArrayOverwrite {values})
 
 move :: forall rw value. Int -> Int -> IxSignalArray (write :: S.WRITE | rw) value -> Effect Boolean
 move indexOld indexNew (IxSignalArray {state, queue}) = do
